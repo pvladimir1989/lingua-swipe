@@ -11,23 +11,27 @@
 	let total = $derived(sections.length);
 	let section = $derived(sections[currentIndex]);
 	let canSwipe = $derived(section.swipeable);
+	let progress = $derived((currentIndex + 1) / total);
 
-	// TTS — native Capacitor plugin on Android, Web Speech API in browser
+	// Section type colors
+	let sectionColor = $derived.by(() => {
+		const t = section.content.type;
+		if (t === 'parallel') return '#5b7cf7';
+		if (t === 'grammar') return '#9b6dff';
+		return '#4dcba0';
+	});
+
+	// TTS
 	let speaking = $state(false);
 	let speakingText = $state('');
 	let ttsSupported = $state(false);
 	let useNativeTts = $state(false);
 	let nativeTts: any = null;
-
-	// Web Speech API state
 	let voices = $state<SpeechSynthesisVoice[]>([]);
 
-	$effect(() => {
-		initTts();
-	});
+	$effect(() => { initTts(); });
 
 	async function initTts() {
-		// Try Capacitor native TTS first
 		try {
 			const mod = await import('@capacitor-community/text-to-speech');
 			nativeTts = mod.TextToSpeech;
@@ -35,8 +39,6 @@
 			ttsSupported = true;
 			return;
 		} catch {}
-
-		// Fallback to Web Speech API
 		if ('speechSynthesis' in window) {
 			ttsSupported = true;
 			function loadVoices() { voices = window.speechSynthesis.getVoices(); }
@@ -53,82 +55,58 @@
 
 	async function speak(text: string) {
 		if (!ttsSupported) return;
-
-		if (speaking && speakingText === text) {
-			await stopSpeaking();
-			return;
-		}
-
+		if (speaking && speakingText === text) { await stopSpeaking(); return; }
 		await stopSpeaking();
 		speaking = true;
 		speakingText = text;
-
 		if (useNativeTts && nativeTts) {
-			try {
-				await nativeTts.speak({ text, lang: 'es-ES', rate: 0.85 });
-			} catch {}
-			speaking = false;
-			speakingText = '';
+			try { await nativeTts.speak({ text, lang: 'es-ES', rate: 0.85 }); } catch {}
+			speaking = false; speakingText = '';
 		} else {
-			const utterance = new SpeechSynthesisUtterance(text);
-			utterance.lang = 'es-ES';
-			utterance.rate = 0.85;
-			const esVoice = getEsVoice();
-			if (esVoice) utterance.voice = esVoice;
-			utterance.onend = () => { speaking = false; speakingText = ''; };
-			utterance.onerror = () => { speaking = false; speakingText = ''; };
-			window.speechSynthesis.speak(utterance);
+			const u = new SpeechSynthesisUtterance(text);
+			u.lang = 'es-ES'; u.rate = 0.85;
+			const v = getEsVoice(); if (v) u.voice = v;
+			u.onend = () => { speaking = false; speakingText = ''; };
+			u.onerror = () => { speaking = false; speakingText = ''; };
+			window.speechSynthesis.speak(u);
 		}
 	}
 
 	async function stopSpeaking() {
-		if (useNativeTts && nativeTts) {
-			try { await nativeTts.stop(); } catch {}
-		} else if ('speechSynthesis' in window) {
-			window.speechSynthesis.cancel();
-		}
-		speaking = false;
-		speakingText = '';
+		if (useNativeTts && nativeTts) { try { await nativeTts.stop(); } catch {} }
+		else if ('speechSynthesis' in window) { window.speechSynthesis.cancel(); }
+		speaking = false; speakingText = '';
 	}
 
 	async function speakAll() {
 		if (!ttsSupported) return;
 		if (speaking) { await stopSpeaking(); return; }
-
-		const content = section.content;
+		const c = section.content;
 		let texts: string[] = [];
-		if (content.type === 'parallel') {
-			texts = content.pairs.map(p => p.es);
-		} else if (content.type === 'grammar') {
-			texts = content.pairs.map(p => p.es);
-		} else if (content.type === 'vocab') {
-			texts = content.words.map(w => w.es);
-		}
+		if (c.type === 'parallel') texts = c.pairs.map(p => p.es);
+		else if (c.type === 'grammar') texts = c.pairs.map(p => p.es);
+		else if (c.type === 'vocab') texts = c.words.map(w => w.es);
+		speaking = true;
 		await speakQueue(texts);
 	}
 
 	async function speakQueue(texts: string[]) {
 		if (texts.length === 0 || !speaking) { speaking = false; speakingText = ''; return; }
-		const text = texts[0];
-		const rest = texts.slice(1);
-		speakingText = text;
-
+		speakingText = texts[0];
 		if (useNativeTts && nativeTts) {
-			try { await nativeTts.speak({ text, lang: 'es-ES', rate: 0.85 }); } catch {}
-			if (speaking) await speakQueue(rest);
+			try { await nativeTts.speak({ text: texts[0], lang: 'es-ES', rate: 0.85 }); } catch {}
+			if (speaking) await speakQueue(texts.slice(1));
 		} else {
-			const utterance = new SpeechSynthesisUtterance(text);
-			utterance.lang = 'es-ES';
-			utterance.rate = 0.85;
-			const esVoice = getEsVoice();
-			if (esVoice) utterance.voice = esVoice;
-			utterance.onend = () => { if (speaking) speakQueue(rest); };
-			utterance.onerror = () => { speaking = false; speakingText = ''; };
-			window.speechSynthesis.speak(utterance);
+			const u = new SpeechSynthesisUtterance(texts[0]);
+			u.lang = 'es-ES'; u.rate = 0.85;
+			const v = getEsVoice(); if (v) u.voice = v;
+			u.onend = () => { if (speaking) speakQueue(texts.slice(1)); };
+			u.onerror = () => { speaking = false; speakingText = ''; };
+			window.speechSynthesis.speak(u);
 		}
 	}
 
-	// Swipe state
+	// Swipe for language flip
 	let touchStartX = $state(0);
 	let deltaX = $state(0);
 	let swiping = $state(false);
@@ -139,6 +117,41 @@
 		lang = lang === 'es' ? 'ru' : 'es';
 	}
 
+	// Vertical swipe for section navigation
+	let touchStartY = $state(0);
+	let verticalSwiping = $state(false);
+
+	function onTouchStart(e: TouchEvent) {
+		touchStartX = e.touches[0].clientX;
+		touchStartY = e.touches[0].clientY;
+		if (canSwipe && !animating) swiping = true;
+		verticalSwiping = true;
+		deltaX = 0;
+	}
+
+	function onTouchMove(e: TouchEvent) {
+		const dx = e.touches[0].clientX - touchStartX;
+		const dy = e.touches[0].clientY - touchStartY;
+		// Determine dominant direction
+		if (Math.abs(dx) > Math.abs(dy) && canSwipe) {
+			deltaX = dx;
+			verticalSwiping = false;
+		} else {
+			swiping = false;
+		}
+	}
+
+	function onTouchEnd() {
+		if (swiping && Math.abs(deltaX) > 60) {
+			animating = true;
+			toggleLang();
+			setTimeout(() => { animating = false; }, 300);
+		}
+		swiping = false;
+		verticalSwiping = false;
+		deltaX = 0;
+	}
+
 	function prevSection() { if (currentIndex > 0) currentIndex--; }
 	function nextSection() { if (currentIndex < total - 1) currentIndex++; }
 
@@ -146,8 +159,7 @@
 		lessonIndex = i;
 		currentIndex = 0;
 		lang = 'es';
-		window.speechSynthesis?.cancel();
-		speaking = false;
+		stopSpeaking();
 	}
 
 	function onKeydown(e: KeyboardEvent) {
@@ -157,39 +169,40 @@
 		if (e.key === ' ') { e.preventDefault(); toggleLang(); }
 	}
 
-	function onTouchStart(e: TouchEvent) {
-		if (animating || !canSwipe) return;
-		touchStartX = e.touches[0].clientX;
-		swiping = true;
-		deltaX = 0;
+	// Long press to speak
+	let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+
+	function onLongPressStart(text: string) {
+		longPressTimer = setTimeout(() => speak(text), 400);
 	}
 
-	function onTouchMove(e: TouchEvent) {
-		if (!swiping) return;
-		deltaX = e.touches[0].clientX - touchStartX;
+	function onLongPressEnd() {
+		if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
 	}
 
-	function onTouchEnd() {
-		if (!swiping) return;
-		swiping = false;
-		if (Math.abs(deltaX) > 60) {
-			animating = true;
-			toggleLang();
-			setTimeout(() => { animating = false; }, 300);
-		}
-		deltaX = 0;
-	}
-
-	let langLabel = $derived(lang === 'es' ? 'Espanol' : 'Русский');
+	let langLabel = $derived(lang === 'es' ? 'ES' : 'RU');
 	let footerHint = $derived.by(() => {
-		if (canSwipe) return lang === 'es' ? '← свайп → Русский' : '← свайп → Espanol';
-		return '';
+		if (canSwipe) return lang === 'es' ? '← свайп → RU' : '← свайп → ES';
+		return 'долгое нажатие = озвучить';
+	});
+
+	// Section icon
+	let sectionIcon = $derived.by(() => {
+		const t = section.content.type;
+		if (t === 'parallel') return '💬';
+		if (t === 'grammar') return '📐';
+		return '📖';
 	});
 </script>
 
 <svelte:window onkeydown={onKeydown} />
 
 <div class="app">
+	<!-- Progress bar -->
+	<div class="progress-bar">
+		<div class="progress-fill" style="width: {progress * 100}%; background: {sectionColor}"></div>
+	</div>
+
 	<header>
 		<div class="top-row">
 			<div class="lesson-tabs">
@@ -201,81 +214,71 @@
 					>{l.title}</button>
 				{/each}
 			</div>
-			<div class="top-right">
-				<button class="speak-all-btn" class:active={speaking} onclick={speakAll} aria-label="Read all aloud">
-					{speaking ? '◼' : '▶'} ES
+			{#if canSwipe}
+				<button class="lang-pill" onclick={toggleLang}>
+					<span class="lang-dot" class:es={lang === 'es'} class:ru={lang === 'ru'}></span>
+					{langLabel}
 				</button>
-				{#if canSwipe}
-					<div class="lang-indicator" class:es={lang === 'es'} class:ru={lang === 'ru'}>
-						{langLabel}
-					</div>
-				{/if}
-			</div>
-		</div>
-		<div class="subtitle">{lesson.subtitle}</div>
-		<div class="sections-nav">
-			{#each sections as s, i (s.id)}
-				<button
-					class="section-btn"
-					class:active={i === currentIndex}
-					onclick={() => currentIndex = i}
-				>{s.title}</button>
-			{/each}
+			{/if}
 		</div>
 	</header>
 
+	<!-- Main content -->
 	<main
 		ontouchstart={onTouchStart}
 		ontouchmove={onTouchMove}
 		ontouchend={onTouchEnd}
-		style="transform: translateX({swiping && canSwipe ? deltaX * 0.4 : 0}px)"
+		style="transform: translateX({swiping && canSwipe ? deltaX * 0.3 : 0}px)"
 	>
 		<div class="card" class:flip-in={animating}>
+			<!-- Section title inside card -->
+			<div class="section-header">
+				<span class="section-icon">{sectionIcon}</span>
+				<span class="section-title">{section.title}</span>
+			</div>
+
 			{#if section.content.type === 'parallel'}
 				<div class="text-block">
 					{#each section.content.pairs as pair, i (i)}
-						<div class="line-row">
-							<p class="line">{lang === 'es' ? pair.es : pair.ru}</p>
-							<button
-								class="speak-btn"
-								class:active={speaking && speakingText === pair.es}
-								onclick={() => speak(pair.es)}
-								aria-label="Read aloud"
-							>&#9835;</button>
-						</div>
+						<p
+							class="line"
+							ontouchstart={() => onLongPressStart(pair.es)}
+							ontouchend={onLongPressEnd}
+							ontouchcancel={onLongPressEnd}
+							class:speaking={speaking && speakingText === pair.es}
+						>{lang === 'es' ? pair.es : pair.ru}</p>
 					{/each}
 				</div>
 
 			{:else if section.content.type === 'grammar'}
 				<div class="text-block">
 					<div class="explanation">{section.content.explanation}</div>
-					<div class="examples-header">Примеры:</div>
 					{#each section.content.pairs as pair, i (i)}
-						<div class="example-pair">
-							<div class="example-row">
-								<span class="primary">{pair.es}</span>
-								<button
-									class="speak-btn"
-									class:active={speaking && speakingText === pair.es}
-									onclick={() => speak(pair.es)}
-									aria-label="Read aloud"
-								>&#9835;</button>
-							</div>
+						<div
+							class="example-pair"
+							role="button" tabindex="0"
+							ontouchstart={() => onLongPressStart(pair.es)}
+							ontouchend={onLongPressEnd}
+							ontouchcancel={onLongPressEnd}
+							class:speaking={speaking && speakingText === pair.es}
+						>
+							<span class="primary">{pair.es}</span>
 							<span class="secondary">{pair.ru}</span>
 						</div>
 					{/each}
 				</div>
 
 			{:else if section.content.type === 'vocab'}
-				<div class="text-block vocab">
+				<div class="text-block">
 					{#each section.content.words as w, i (i)}
-						<div class="vocab-line">
-							<button
-								class="speak-btn"
-								class:active={speaking && speakingText === w.es}
-								onclick={() => speak(w.es)}
-								aria-label="Read aloud"
-							>&#9835;</button>
+						<div
+							class="vocab-line"
+							role="button" tabindex="0"
+							ontouchstart={() => onLongPressStart(w.es)}
+							ontouchend={onLongPressEnd}
+							ontouchcancel={onLongPressEnd}
+							class:speaking={speaking && speakingText === w.es}
+						>
 							<span class="word">{w.es}</span>
 							<span class="meaning">{w.ru}</span>
 						</div>
@@ -285,28 +288,42 @@
 		</div>
 	</main>
 
-	<footer>
-		<button class="footer-nav" onclick={prevSection} disabled={currentIndex === 0}>&#9650;</button>
-		<div class="footer-center">
-			<span class="counter">{currentIndex + 1} / {total}</span>
-			{#if footerHint}
-				<span class="swipe-hint">{footerHint}</span>
-			{/if}
-		</div>
-		<button class="footer-nav" onclick={nextSection} disabled={currentIndex === total - 1}>&#9660;</button>
-	</footer>
+	<!-- Bottom navigation -->
+	<nav class="bottom-nav">
+		{#each sections as s, i (s.id)}
+			<button
+				class="nav-item"
+				class:active={i === currentIndex}
+				onclick={() => currentIndex = i}
+			>
+				<span class="nav-icon">{s.content.type === 'parallel' ? '💬' : s.content.type === 'grammar' ? '📐' : '📖'}</span>
+				<span class="nav-label">{s.title.length > 12 ? s.title.slice(0, 12) + '…' : s.title}</span>
+			</button>
+		{/each}
+	</nav>
+
+	<!-- FAB for TTS -->
+	{#if ttsSupported}
+		<button class="fab" class:active={speaking} onclick={speakAll} aria-label="Speak all">
+			{speaking ? '◼' : '▶'}
+		</button>
+	{/if}
+
+	<!-- Hint overlay -->
+	<div class="hint">{footerHint}</div>
 </div>
 
 <style>
 	:global(*, *::before, *::after) { box-sizing: border-box; }
 	:global(body) {
 		margin: 0;
-		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-		background: #0d0d1a;
+		font-family: 'Georgia', 'Times New Roman', serif;
+		background: #0a0a1a;
 		color: #e8e8f0;
 		-webkit-font-smoothing: antialiased;
 		height: 100dvh;
 		overflow: hidden;
+		-webkit-tap-highlight-color: transparent;
 	}
 
 	.app {
@@ -315,13 +332,26 @@
 		height: 100dvh;
 		max-width: 600px;
 		margin: 0 auto;
+		position: relative;
 	}
 
+	/* Progress bar */
+	.progress-bar {
+		height: 3px;
+		background: #1a1a2e;
+		flex-shrink: 0;
+	}
+	.progress-fill {
+		height: 100%;
+		transition: width 0.3s ease, background 0.3s ease;
+		border-radius: 0 2px 2px 0;
+	}
+
+	/* Header */
 	header {
 		flex-shrink: 0;
-		padding: 0.4rem 0.6rem 0.3rem;
-		background: #111128;
-		border-bottom: 1px solid #1e1e3a;
+		padding: 0.6rem 1rem 0.5rem;
+		background: #0f0f22;
 	}
 
 	.top-row {
@@ -330,283 +360,289 @@
 		align-items: center;
 	}
 
-	.top-right {
+	.lesson-tabs {
 		display: flex;
-		align-items: center;
 		gap: 0.4rem;
 	}
 
-	.lesson-tabs {
-		display: flex;
-		gap: 0.25rem;
-	}
-
 	.lesson-tab {
-		background: #1a1a3a;
-		border: 1px solid #2a2a50;
-		color: #667;
-		font-size: 0.7rem;
+		background: transparent;
+		border: 1.5px solid #2a2a4a;
+		color: #556;
+		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+		font-size: 0.8rem;
 		font-weight: 600;
-		padding: 0.2rem 0.5rem;
-		border-radius: 4px;
+		padding: 0.35rem 0.75rem;
+		border-radius: 20px;
 		cursor: pointer;
-		transition: all 0.2s;
+		transition: all 0.25s ease;
 	}
 	.lesson-tab.active {
-		background: linear-gradient(135deg, #667eea, #764ba2);
+		background: linear-gradient(135deg, #5b7cf7, #8b5cf6);
 		border-color: transparent;
 		color: white;
+		box-shadow: 0 2px 12px rgba(91, 124, 247, 0.3);
 	}
 
-	.subtitle {
-		font-size: 0.65rem;
-		color: #556;
-		margin-top: 0.2rem;
-	}
-
-	.speak-all-btn {
-		background: #1a1a3a;
-		border: 1px solid #2a2a50;
-		color: #7a8;
-		font-size: 0.65rem;
-		font-weight: 700;
-		padding: 0.2rem 0.5rem;
-		border-radius: 4px;
-		cursor: pointer;
-		transition: all 0.2s;
-		letter-spacing: 0.5px;
-	}
-	.speak-all-btn.active {
-		background: rgba(100, 200, 130, 0.15);
-		border-color: #4a8;
-		color: #6cb;
-	}
-	.speak-all-btn:hover { border-color: #4a8; }
-
-	.lang-indicator {
-		font-size: 0.7rem;
-		font-weight: 700;
-		padding: 0.2rem 0.6rem;
-		border-radius: 4px;
-		letter-spacing: 0.5px;
-		text-transform: uppercase;
-		transition: background 0.3s, color 0.3s;
-	}
-	.lang-indicator.es {
-		background: rgba(102, 126, 234, 0.2);
-		color: #8da0ff;
-	}
-	.lang-indicator.ru {
-		background: rgba(245, 87, 108, 0.2);
-		color: #f5879c;
-	}
-
-	.sections-nav {
+	.lang-pill {
 		display: flex;
-		gap: 0;
-		margin-top: 0.35rem;
-		overflow-x: auto;
-		scrollbar-width: none;
-		-ms-overflow-style: none;
-	}
-	.sections-nav::-webkit-scrollbar { display: none; }
-
-	.section-btn {
-		flex-shrink: 0;
-		background: none;
+		align-items: center;
+		gap: 0.4rem;
+		background: rgba(255,255,255,0.06);
 		border: none;
-		color: #555;
-		font-size: 0.65rem;
-		padding: 0.25rem 0.5rem;
+		color: #aab;
+		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+		font-size: 0.75rem;
+		font-weight: 700;
+		padding: 0.3rem 0.7rem;
+		border-radius: 20px;
 		cursor: pointer;
-		border-bottom: 2px solid transparent;
-		transition: color 0.2s, border-color 0.2s;
-		white-space: nowrap;
+		letter-spacing: 0.5px;
+		transition: all 0.2s;
 	}
-	.section-btn.active {
-		color: #b8c4ff;
-		border-bottom-color: #667eea;
-	}
+	.lang-pill:active { transform: scale(0.95); }
 
+	.lang-dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		transition: background 0.3s;
+	}
+	.lang-dot.es { background: #5b7cf7; }
+	.lang-dot.ru { background: #f56585; }
+
+	/* Main */
 	main {
 		flex: 1;
 		overflow: hidden;
 		transition: transform 0.15s ease-out;
+		padding: 0;
 	}
 
 	.card {
 		height: 100%;
 		overflow-y: auto;
 		-webkit-overflow-scrolling: touch;
-		padding: 0.6rem 0.75rem 1.5rem;
-		scrollbar-width: thin;
-		scrollbar-color: #222 transparent;
+		padding: 0.75rem 1.25rem 5rem;
+		scrollbar-width: none;
 	}
+	.card::-webkit-scrollbar { display: none; }
 
 	.card.flip-in {
 		animation: flipIn 0.3s ease-out;
 	}
 
 	@keyframes flipIn {
-		0% { opacity: 0; transform: scale(0.97); }
-		100% { opacity: 1; transform: scale(1); }
+		0% { opacity: 0; transform: translateX(20px); }
+		100% { opacity: 1; transform: translateX(0); }
 	}
 
+	/* Section header inside card */
+	.section-header {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin-bottom: 1rem;
+		padding-bottom: 0.6rem;
+		border-bottom: 1px solid rgba(255,255,255,0.06);
+	}
+
+	.section-icon {
+		font-size: 1.1rem;
+	}
+
+	.section-title {
+		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+		font-size: 0.85rem;
+		font-weight: 600;
+		color: #889;
+	}
+
+	/* Text content */
 	.text-block {
 		display: flex;
 		flex-direction: column;
 		gap: 0;
 	}
 
-	/* TTS button */
-	.speak-btn {
-		background: none;
-		border: none;
-		color: #445;
-		font-size: 0.75rem;
-		cursor: pointer;
-		padding: 0.15rem 0.3rem;
-		border-radius: 4px;
-		flex-shrink: 0;
-		transition: color 0.2s;
-		line-height: 1;
-	}
-	.speak-btn:hover { color: #6cb; }
-	.speak-btn.active { color: #6cb; }
-
-	/* Parallel lines with speaker */
-	.line-row {
-		display: flex;
-		align-items: flex-start;
-		gap: 0.25rem;
-		border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-	}
-	.line-row:last-child { border-bottom: none; }
-
+	/* Parallel lines */
 	.line {
 		margin: 0;
-		padding: 0.3rem 0;
-		font-size: 0.92rem;
-		line-height: 1.5;
-		color: #d8dcf0;
-		flex: 1;
-	}
-
-	.explanation {
-		font-size: 0.82rem;
-		line-height: 1.6;
-		color: #b0b4cc;
-		white-space: pre-line;
-		padding: 0.6rem;
-		background: rgba(102, 126, 234, 0.06);
+		padding: 0.6rem 0.5rem;
+		font-size: 1.05rem;
+		line-height: 1.65;
+		color: #e0e4f8;
 		border-radius: 8px;
-		border-left: 3px solid #4a5a9e;
-		margin-bottom: 0.6rem;
+		transition: background 0.2s;
+		cursor: default;
+	}
+	.line:active { background: rgba(91, 124, 247, 0.08); }
+	.line.speaking {
+		background: rgba(91, 124, 247, 0.12);
+		border-left: 3px solid #5b7cf7;
+		padding-left: calc(0.5rem - 3px);
 	}
 
-	.examples-header {
-		font-size: 0.72rem;
-		text-transform: uppercase;
-		letter-spacing: 1px;
-		color: #556;
-		margin-bottom: 0.3rem;
-		font-weight: 600;
+	/* Grammar */
+	.explanation {
+		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+		font-size: 0.85rem;
+		line-height: 1.7;
+		color: #99a0c0;
+		white-space: pre-line;
+		padding: 0.8rem 1rem;
+		background: linear-gradient(135deg, rgba(155, 109, 255, 0.06), rgba(91, 124, 247, 0.04));
+		border-radius: 12px;
+		border-left: 3px solid #9b6dff;
+		margin-bottom: 0.8rem;
 	}
 
 	.example-pair {
 		display: flex;
 		flex-direction: column;
-		padding: 0.3rem 0;
-		border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+		padding: 0.5rem;
+		border-radius: 8px;
+		transition: background 0.2s;
+		cursor: default;
 	}
-	.example-pair:last-child { border-bottom: none; }
-
-	.example-row {
-		display: flex;
-		align-items: flex-start;
-		gap: 0.25rem;
+	.example-pair:active { background: rgba(155, 109, 255, 0.08); }
+	.example-pair.speaking {
+		background: rgba(155, 109, 255, 0.1);
+		border-left: 3px solid #9b6dff;
+		padding-left: calc(0.5rem - 3px);
 	}
 
 	.primary {
-		font-size: 0.9rem;
-		color: #c8d0f8;
-		line-height: 1.45;
-		flex: 1;
+		font-size: 1.05rem;
+		color: #d0d8ff;
+		line-height: 1.55;
+		font-weight: 500;
 	}
 
 	.secondary {
-		font-size: 0.78rem;
-		color: #666;
+		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+		font-size: 0.82rem;
+		color: #667;
 		line-height: 1.4;
-		font-style: italic;
-		margin-top: 1px;
+		margin-top: 2px;
 	}
 
-	.vocab { gap: 0; }
-
+	/* Vocabulary */
 	.vocab-line {
 		display: flex;
+		justify-content: space-between;
 		align-items: baseline;
-		gap: 0.35rem;
-		padding: 0.35rem 0;
-		border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-		font-size: 0.88rem;
-		line-height: 1.4;
+		gap: 0.75rem;
+		padding: 0.55rem 0.5rem;
+		border-radius: 8px;
+		font-size: 1rem;
+		line-height: 1.45;
+		transition: background 0.2s;
+		cursor: default;
 	}
-	.vocab-line:last-child { border-bottom: none; }
+	.vocab-line:active { background: rgba(77, 203, 160, 0.08); }
+	.vocab-line.speaking {
+		background: rgba(77, 203, 160, 0.1);
+		border-left: 3px solid #4dcba0;
+		padding-left: calc(0.5rem - 3px);
+	}
 
 	.word {
-		color: #b8c4ff;
+		color: #b0c8ff;
 		font-weight: 600;
 		flex-shrink: 0;
 	}
 
 	.meaning {
-		color: #888;
-		margin-left: auto;
+		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+		color: #667;
 		text-align: right;
+		font-size: 0.88rem;
 	}
 
-	footer {
+	/* Bottom navigation */
+	.bottom-nav {
 		flex-shrink: 0;
 		display: flex;
-		align-items: center;
-		padding: 0.3rem 0.75rem;
-		background: #111128;
-		border-top: 1px solid #1e1e3a;
-		gap: 0.5rem;
+		background: #0f0f22;
+		border-top: 1px solid #1a1a2e;
+		padding: 0.3rem 0.25rem 0.5rem;
+		overflow-x: auto;
+		scrollbar-width: none;
+		gap: 0;
 	}
+	.bottom-nav::-webkit-scrollbar { display: none; }
 
-	.footer-nav {
-		background: none;
-		border: 1px solid #2a2a50;
-		color: #667;
-		border-radius: 6px;
-		width: 32px;
-		height: 28px;
-		font-size: 0.7rem;
-		cursor: pointer;
-		flex-shrink: 0;
-	}
-	.footer-nav:disabled { opacity: 0.2; cursor: default; }
-	.footer-nav:hover:not(:disabled) { border-color: #444; color: #aaa; }
-
-	.footer-center {
+	.nav-item {
 		flex: 1;
+		min-width: 0;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 0;
-	}
-
-	.counter {
-		font-size: 0.72rem;
-		color: #556;
-		font-variant-numeric: tabular-nums;
-	}
-
-	.swipe-hint {
-		font-size: 0.65rem;
+		gap: 0.15rem;
+		background: none;
+		border: none;
 		color: #445;
+		padding: 0.3rem 0.15rem;
+		cursor: pointer;
+		transition: color 0.2s;
+		border-radius: 8px;
+	}
+	.nav-item.active {
+		color: #c0c8ff;
+		background: rgba(91, 124, 247, 0.08);
+	}
+
+	.nav-icon { font-size: 1rem; }
+
+	.nav-label {
+		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+		font-size: 0.55rem;
+		text-align: center;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		max-width: 100%;
+		line-height: 1.2;
+	}
+
+	/* FAB */
+	.fab {
+		position: absolute;
+		bottom: 4.5rem;
+		right: 1rem;
+		width: 48px;
+		height: 48px;
+		border-radius: 50%;
+		background: linear-gradient(135deg, #5b7cf7, #8b5cf6);
+		border: none;
+		color: white;
+		font-size: 1.1rem;
+		cursor: pointer;
+		box-shadow: 0 4px 16px rgba(91, 124, 247, 0.35);
+		transition: all 0.2s;
+		z-index: 10;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+	.fab:active { transform: scale(0.92); }
+	.fab.active {
+		background: linear-gradient(135deg, #f56585, #e44d6e);
+		box-shadow: 0 4px 16px rgba(245, 101, 133, 0.35);
+	}
+
+	/* Hint */
+	.hint {
+		position: absolute;
+		bottom: 4rem;
+		left: 50%;
+		transform: translateX(-50%);
+		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+		font-size: 0.6rem;
+		color: #334;
+		pointer-events: none;
+		white-space: nowrap;
+		z-index: 5;
 	}
 </style>
