@@ -1,6 +1,7 @@
 export interface Section {
 	id: string;
 	title: string;
+	swipeable: boolean;
 	content: SectionContent;
 }
 
@@ -13,6 +14,7 @@ export const sections: Section[] = [
 	{
 		id: 'dialog',
 		title: 'Диалог: La division del tiempo',
+		swipeable: true,
 		content: {
 			type: 'parallel',
 			pairs: [
@@ -41,6 +43,7 @@ export const sections: Section[] = [
 	{
 		id: 'words',
 		title: 'Значение слов и выражений',
+		swipeable: false,
 		content: {
 			type: 'grammar',
 			explanation: 'el siglo — век, столетие\nla edad — возраст; исторический период\n\nНазвания месяцев:\nenero — январь, julio — июль\nfebrero — февраль, agosto — август\nmarzo — март, septiembre — сентябрь\nabril — апрель, octubre — октябрь\nmayo — май, noviembre — ноябрь\njunio — июнь, diciembre — декабрь\n\nВыражения:\nciento entre veinte — раздели сто на двадцать\n¿a cuantos estamos? — какое сегодня число?',
@@ -59,6 +62,7 @@ export const sections: Section[] = [
 	{
 		id: 'prepositions',
 		title: 'Предлоги a, de, en, para',
+		swipeable: false,
 		content: {
 			type: 'grammar',
 			explanation: 'a = в, на, к, по, у\n• a casa — домой (устойчивый оборот)\n• a las dos — в два часа (время)\n• a la espanola — по-испански\n• a 10 pesetas el metro — по 10 песет за метр (цена)\n• признак дательного падежа\n• признак винительного падежа (лицо)\n• орудие действия\n• a + инфинитив = si (условие)\n• al + инфинитив = деепричастие / «когда»\n\nde = от, из, с\n• родительный падеж\n• принадлежность\n\nen = в, на\n• место (где? куда?)\n\npara = для, чтобы, к\n• para + инфинитив — чтобы\n• estar para + инфинитив — быть готовым',
@@ -90,6 +94,7 @@ export const sections: Section[] = [
 	{
 		id: 'numbers',
 		title: 'Числительные 100 — 1 000 000',
+		swipeable: false,
 		content: {
 			type: 'grammar',
 			explanation: 'Количественные:\n101 — ciento y uno\n200 — doscientos / doscientas\n300 — trescientos, -as\n400 — cuatrocientos, -as\n500 — quinientos, -as\n600 — seiscientos, -as\n700 — setecientos, -as\n800 — ochocientos, -as\n900 — novecientos, -as\n1 000 — mil\n1 000 000 — un millon (de)\n\nВажно:\n• mil не имеет множественного числа\n• миллиард = mil millones\n• 200–900 согласуются в роде: doscientos hombres / doscientas mujeres\n\nПорядковые (от 200):\n200-й ducentesimo · 300-й trecentesimo · 500-й quingentesimo · 1000-й milesimo\n\n• primero → primer, tercero → tercer (перед муж. сущ.)\n• В датах и столетиях только primero порядковое, остальные количественные',
@@ -114,6 +119,7 @@ export const sections: Section[] = [
 	{
 		id: 'vocab',
 		title: 'Словарь урока',
+		swipeable: false,
 		content: {
 			type: 'vocab',
 			words: [

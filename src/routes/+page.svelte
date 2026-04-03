@@ -6,6 +6,7 @@
 	let lang = $state<Language>('es');
 	let total = sections.length;
 	let section = $derived(sections[currentIndex]);
+	let canSwipe = $derived(section.swipeable);
 
 	// Swipe state
 	let touchStartX = $state(0);
@@ -13,9 +14,10 @@
 	let swiping = $state(false);
 	let animating = $state(false);
 
-	function showEs() { lang = 'es'; }
-	function showRu() { lang = 'ru'; }
-	function toggleLang() { lang = lang === 'es' ? 'ru' : 'es'; }
+	function toggleLang() {
+		if (!canSwipe) return;
+		lang = lang === 'es' ? 'ru' : 'es';
+	}
 
 	function prevSection() { if (currentIndex > 0) currentIndex--; }
 	function nextSection() { if (currentIndex < total - 1) currentIndex++; }
@@ -28,7 +30,7 @@
 	}
 
 	function onTouchStart(e: TouchEvent) {
-		if (animating) return;
+		if (animating || !canSwipe) return;
 		touchStartX = e.touches[0].clientX;
 		swiping = true;
 		deltaX = 0;
@@ -50,8 +52,13 @@
 		deltaX = 0;
 	}
 
-	let langLabel = $derived(lang === 'es' ? 'Espanol' : 'Русский');
-	let otherLangHint = $derived(lang === 'es' ? '← свайп → Русский' : '← свайп → Espanol');
+	let langLabel = $derived(lang === 'es' ? 'Español' : 'Русский');
+	let footerHint = $derived.by(() => {
+		if (canSwipe) {
+			return lang === 'es' ? '← свайп → Русский' : '← свайп → Español';
+		}
+		return '';
+	});
 </script>
 
 <svelte:window onkeydown={onKeydown} />
@@ -59,12 +66,13 @@
 <div class="app">
 	<header>
 		<div class="top-row">
-			<h1>Leccion 59</h1>
-			<div class="lang-indicator" class:es={lang === 'es'} class:ru={lang === 'ru'}>
-				{langLabel}
-			</div>
+			<h1>Lección 59</h1>
+			{#if canSwipe}
+				<div class="lang-indicator" class:es={lang === 'es'} class:ru={lang === 'ru'}>
+					{langLabel}
+				</div>
+			{/if}
 		</div>
-		<!-- Section dots -->
 		<div class="sections-nav">
 			{#each sections as s, i (s.id)}
 				<button
@@ -80,10 +88,11 @@
 		ontouchstart={onTouchStart}
 		ontouchmove={onTouchMove}
 		ontouchend={onTouchEnd}
-		style="transform: translateX({swiping ? deltaX * 0.4 : 0}px)"
+		style="transform: translateX({swiping && canSwipe ? deltaX * 0.4 : 0}px)"
 	>
 		<div class="card" class:flip-in={animating}>
 			{#if section.content.type === 'parallel'}
+				<!-- Swipeable: show one language at a time -->
 				<div class="text-block">
 					{#each section.content.pairs as pair, i (i)}
 						<p class="line">{lang === 'es' ? pair.es : pair.ru}</p>
@@ -91,23 +100,25 @@
 				</div>
 
 			{:else if section.content.type === 'grammar'}
+				<!-- Static: always show both languages -->
 				<div class="text-block">
 					<div class="explanation">{section.content.explanation}</div>
 					<div class="examples-header">Примеры:</div>
 					{#each section.content.pairs as pair, i (i)}
 						<div class="example-pair">
-							<span class="primary">{lang === 'es' ? pair.es : pair.ru}</span>
-							<span class="secondary">{lang === 'es' ? pair.ru : pair.es}</span>
+							<span class="primary">{pair.es}</span>
+							<span class="secondary">{pair.ru}</span>
 						</div>
 					{/each}
 				</div>
 
 			{:else if section.content.type === 'vocab'}
+				<!-- Static: always show both languages -->
 				<div class="text-block vocab">
 					{#each section.content.words as w, i (i)}
 						<div class="vocab-line">
-							<span class="word">{lang === 'es' ? w.es : w.ru}</span>
-							<span class="meaning">{lang === 'es' ? w.ru : w.es}</span>
+							<span class="word">{w.es}</span>
+							<span class="meaning">{w.ru}</span>
 						</div>
 					{/each}
 				</div>
@@ -119,7 +130,9 @@
 		<button class="footer-nav" onclick={prevSection} disabled={currentIndex === 0}>&#9650;</button>
 		<div class="footer-center">
 			<span class="counter">{currentIndex + 1} / {total}</span>
-			<span class="swipe-hint">{otherLangHint}</span>
+			{#if footerHint}
+				<span class="swipe-hint">{footerHint}</span>
+			{/if}
 		</div>
 		<button class="footer-nav" onclick={nextSection} disabled={currentIndex === total - 1}>&#9660;</button>
 	</footer>
@@ -243,7 +256,7 @@
 		gap: 0;
 	}
 
-	/* Parallel (dialogue) */
+	/* Parallel (dialogue) — single language, swipeable */
 	.line {
 		margin: 0;
 		padding: 0.3rem 0;
@@ -254,7 +267,7 @@
 	}
 	.line:last-child { border-bottom: none; }
 
-	/* Grammar */
+	/* Grammar — both languages always visible */
 	.explanation {
 		font-size: 0.82rem;
 		line-height: 1.6;
@@ -298,10 +311,8 @@
 		margin-top: 1px;
 	}
 
-	/* Vocabulary */
-	.vocab {
-		gap: 0;
-	}
+	/* Vocabulary — both languages always visible */
+	.vocab { gap: 0; }
 
 	.vocab-line {
 		display: flex;
