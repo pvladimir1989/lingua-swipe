@@ -1,90 +1,147 @@
-import type { Card } from '$lib/types';
+export interface Section {
+	id: string;
+	title: string;
+	content: SectionContent;
+}
 
-export const cards: Card[] = [
-	// Диалог
-	{ id: 'd1', category: 'Диалог', spanish: '— José, ayúdame en mis tareas — pide Carmencita.', russian: '— Хосэ, помоги мне в моих заданиях.' },
-	{ id: 'd2', category: 'Диалог', spanish: '— Bueno, ¿cuánto es una por una?', russian: '— Хорошо. Сколько будет одинажды один?' },
-	{ id: 'd3', category: 'Диалог', spanish: '— Una por una es una.', russian: '— Одинажды один — один.' },
-	{ id: 'd4', category: 'Диалог', spanish: '— Y ¿cuánto son tres por dos?', russian: '— А сколько — трижды два?' },
-	{ id: 'd5', category: 'Диалог', spanish: '— Tres por dos son seis.', russian: '— Трижды два — шесть.' },
-	{ id: 'd6', category: 'Диалог', spanish: '— Y ¿una más seis?', russian: '— А один прибавить шесть?' },
-	{ id: 'd7', category: 'Диалог', spanish: '— Una más seis igual a siete.', russian: '— Один прибавить шесть равняется семь.' },
-	{ id: 'd8', category: 'Диалог', spanish: '— Y ¿dieciséis menos once?', russian: '— А шестнадцать отнять одиннадцать?' },
-	{ id: 'd9', category: 'Диалог', spanish: '— Dieciséis menos once igual a cinco, pero, José...', russian: '— Шестнадцать отнять одиннадцать равняется пять, но Хосэ...' },
-	{ id: 'd10', category: 'Диалог', spanish: '— Espera, contesta primero. ¿Ciento entre veinte?', russian: '— Подожди, сначала отвечай: сто разделить на двадцать?' },
-	{ id: 'd11', category: 'Диалог', spanish: '— ¿Por qué no lo dijiste en seguida?', russian: '— Почему же ты об этом сразу не сказала?' },
-	{ id: 'd12', category: 'Диалог', spanish: '— Porque no me dejabas decírtelo.', russian: '— Потому что ты мне не позволил сказать.' },
+export type SectionContent =
+	| { type: 'parallel'; pairs: { es: string; ru: string }[] }
+	| { type: 'grammar'; explanation: string; pairs: { es: string; ru: string }[] }
+	| { type: 'vocab'; words: { es: string; ru: string }[] };
 
-	// Предлог A
-	{ id: 'a1', category: 'Предлог A', spanish: 'a casa', russian: 'домой' },
-	{ id: 'a2', category: 'Предлог A', spanish: 'a las dos', russian: 'в два часа' },
-	{ id: 'a3', category: 'Предлог A', spanish: 'a la española', russian: 'по-испански' },
-	{ id: 'a4', category: 'Предлог A', spanish: 'Doy el libro a mi maestro.', russian: 'Я даю книгу учителю.' },
-	{ id: 'a5', category: 'Предлог A', spanish: 'Veo a Juana.', russian: 'Я вижу Хуану.' },
-	{ id: 'a6', category: 'Предлог A', spanish: 'Al entrar en el cuarto vi a Juan.', russian: 'Войдя в комнату, я увидел Хуана.' },
-	{ id: 'a7', category: 'Предлог A', spanish: 'A ser esto verdad, te diría...', russian: 'Если бы это была правда, я бы тебе сказала...' },
-
-	// Предлог DE
-	{ id: 'de1', category: 'Предлог DE', spanish: 'Lo recibí de Juan.', russian: 'Я получил это от Хуана.' },
-	{ id: 'de2', category: 'Предлог DE', spanish: 'Salí de casa.', russian: 'Я вышел из дому.' },
-	{ id: 'de3', category: 'Предлог DE', spanish: 'La niña de los ojos negros.', russian: 'Черноглазая девочка.' },
-	{ id: 'de4', category: 'Предлог DE', spanish: 'El libro de Juan.', russian: 'Книга Хуана.' },
-
-	// Предлог EN
-	{ id: 'en1', category: 'Предлог EN', spanish: 'Estoy en casa.', russian: 'Я дома.' },
-	{ id: 'en2', category: 'Предлог EN', spanish: 'Entro en casa.', russian: 'Я вхожу в дом.' },
-	{ id: 'en3', category: 'Предлог EN', spanish: 'De día en día.', russian: 'День ото дня; с каждым днём.' },
-
-	// Предлог PARA
-	{ id: 'p1', category: 'Предлог PARA', spanish: 'para ganar', russian: 'чтобы заработать' },
-	{ id: 'p2', category: 'Предлог PARA', spanish: 'para Juan', russian: 'для Хуана' },
-	{ id: 'p3', category: 'Предлог PARA', spanish: 'estoy para ir', russian: 'я готов пойти' },
-
-	// Числительные
-	{ id: 'n1', category: 'Числительные', spanish: 'doscientos hombres', russian: 'двести мужчин' },
-	{ id: 'n2', category: 'Числительные', spanish: 'doscientas mujeres', russian: 'двести женщин' },
-	{ id: 'n3', category: 'Числительные', spanish: 'quinientos', russian: 'пятьсот' },
-	{ id: 'n4', category: 'Числительные', spanish: 'mil', russian: 'тысяча' },
-	{ id: 'n5', category: 'Числительные', spanish: 'un millón', russian: 'миллион' },
-	{ id: 'n6', category: 'Числительные', spanish: 'mil millones', russian: 'миллиард' },
-	{ id: 'n7', category: 'Числительные', spanish: 'el primero de junio', russian: 'первое июня' },
-	{ id: 'n8', category: 'Числительные', spanish: 'el primer piso', russian: 'первый этаж' },
-
-	// Словарь
-	{ id: 'v1', category: 'Словарь', spanish: 'ayudar', russian: 'помогать' },
-	{ id: 'v2', category: 'Словарь', spanish: 'la tarea', russian: 'работа, задача, задание' },
-	{ id: 'v3', category: 'Словарь', spanish: 'dividir', russian: 'делить, разделить' },
-	{ id: 'v4', category: 'Словарь', spanish: 'el siglo', russian: 'столетие, век' },
-	{ id: 'v5', category: 'Словарь', spanish: 'la edad', russian: 'возраст; век' },
-	{ id: 'v6', category: 'Словарь', spanish: 'el historiador', russian: 'историк' },
-	{ id: 'v7', category: 'Словарь', spanish: 'el astrónomo', russian: 'астроном' },
-	{ id: 'v8', category: 'Словарь', spanish: 'el militar', russian: 'военный' },
-	{ id: 'v9', category: 'Словарь', spanish: 'la campaña', russian: 'кампания' },
-	{ id: 'v10', category: 'Словарь', spanish: 'el actor', russian: 'актёр' },
-	{ id: 'v11', category: 'Словарь', spanish: 'el cantante', russian: 'певец' },
-	{ id: 'v12', category: 'Словарь', spanish: 'las elecciones', russian: 'выборы' },
-	{ id: 'v13', category: 'Словарь', spanish: 'caer', russian: 'падать; терять' },
-	{ id: 'v14', category: 'Словарь', spanish: 'el ministerio', russian: 'министерство' },
-
-	// Месяцы
-	{ id: 'm1', category: 'Месяцы', spanish: 'enero', russian: 'январь' },
-	{ id: 'm2', category: 'Месяцы', spanish: 'febrero', russian: 'февраль' },
-	{ id: 'm3', category: 'Месяцы', spanish: 'marzo', russian: 'март' },
-	{ id: 'm4', category: 'Месяцы', spanish: 'abril', russian: 'апрель' },
-	{ id: 'm5', category: 'Месяцы', spanish: 'mayo', russian: 'май' },
-	{ id: 'm6', category: 'Месяцы', spanish: 'junio', russian: 'июнь' },
-	{ id: 'm7', category: 'Месяцы', spanish: 'julio', russian: 'июль' },
-	{ id: 'm8', category: 'Месяцы', spanish: 'agosto', russian: 'август' },
-	{ id: 'm9', category: 'Месяцы', spanish: 'septiembre', russian: 'сентябрь' },
-	{ id: 'm10', category: 'Месяцы', spanish: 'octubre', russian: 'октябрь' },
-	{ id: 'm11', category: 'Месяцы', spanish: 'noviembre', russian: 'ноябрь' },
-	{ id: 'm12', category: 'Месяцы', spanish: 'diciembre', russian: 'декабрь' },
-
-	// Математика
-	{ id: 'math1', category: 'Математика', spanish: 'tres por dos son seis', russian: '3 × 2 = 6' },
-	{ id: 'math2', category: 'Математика', spanish: 'una más seis igual a siete', russian: '1 + 6 = 7' },
-	{ id: 'math3', category: 'Математика', spanish: 'dieciséis menos once igual a cinco', russian: '16 − 11 = 5' },
-	{ id: 'math4', category: 'Математика', spanish: 'ciento entre veinte', russian: '100 ÷ 20' },
+export const sections: Section[] = [
+	{
+		id: 'dialog',
+		title: 'Диалог: La division del tiempo',
+		content: {
+			type: 'parallel',
+			pairs: [
+				{ es: '— Jose, ayudame en mis tareas — pide Carmencita.', ru: '— Хосэ, помоги мне в моих заданиях — просит Карменсита.' },
+				{ es: '— Bueno, ¿cuanto es una por una?', ru: '— Хорошо. Сколько будет одинажды один?' },
+				{ es: '— Una por una es una.', ru: '— Одинажды один — один.' },
+				{ es: '— Y ¿cuanto son tres por dos?', ru: '— А сколько — трижды два?' },
+				{ es: '— Tres por dos son seis.', ru: '— Трижды два — шесть.' },
+				{ es: '— Y ¿una mas seis?', ru: '— А один прибавить шесть?' },
+				{ es: '— Una mas seis igual a siete.', ru: '— Один прибавить шесть равняется семь.' },
+				{ es: '— Y ¿dieciseis menos once?', ru: '— А шестнадцать отнять одиннадцать?' },
+				{ es: '— Dieciseis menos once igual a cinco, pero, Jose...', ru: '— Шестнадцать отнять одиннадцать равняется пять, но Хосэ...' },
+				{ es: '— Espera, contesta primero. ¿Ciento entre veinte?', ru: '— Подожди, сначала отвечай: сто разделить на двадцать?' },
+				{ es: '— A cinco. Escucha, Jose, quiero decirte...', ru: '— Пять, но, послушай, Хосэ, я хочу тебе сказать...' },
+				{ es: '— Espera. ¿Y a cuantos estamos?', ru: '— Подожди, а какое сегодня число?' },
+				{ es: '— Estamos a doce de enero de dos mil veintidos, pero, Jose, esto es demasiado facil, tengo que escribir algo sobre la division del tiempo en general.', ru: '— Сегодня двенадцатое января 2022 года, но Хосэ, это очень легко, а я должна написать об определении времени вообще.' },
+				{ es: '— ¿Por que no lo dijiste en seguida?', ru: '— Почему же ты об этом сразу не сказала?' },
+				{ es: '— Porque no me dejabas decirtelo.', ru: '— Потому что ты мне не позволил сказать.' },
+				{ es: '— Bueno, escribe pues: „Los historiadores dividen el tiempo en edades, en civilizaciones... los astronomos lo han dividido en siglos, ora en anos, ora en meses, ora en semanas; y las semanas en dias, y los dias en minutos, y los minutos en segundos...', ru: '— Ну, ладно, тогда пиши: „историки определяют время веками и цивилизацией: астрономы поделили его на столетия, годы, месяцы, недели, а недели делят на дни, дни на минуты, а минуты на секунды...' },
+				{ es: 'Los militares no cuentan por anos, sino por campanas...', ru: 'Военные считают время не по годам, а по кампаниям...' },
+				{ es: 'Los actores y los cantantes tienen tambien sus campanas, que se llaman temporadas...', ru: 'У артистов и певцов тоже кампании, которые называются сезонами...' },
+				{ es: 'Los politicos cuentan por elecciones, por legislaturas, por ministerios. Para ellos empieza el ano cuando se abren las cortes, y se acaba el mundo cuando caen del poder...', ru: 'Политические деятели считают года по выборам или по срокам полномочий законодательных органов, кабинетов министров. Для них год начинается, когда открываются заседания парламента, а мир кончается, когда они теряют власть...' },
+			]
+		}
+	},
+	{
+		id: 'words',
+		title: 'Значение слов и выражений',
+		content: {
+			type: 'grammar',
+			explanation: 'el siglo — век, столетие\nla edad — возраст; исторический период\n\nНазвания месяцев:\nenero — январь, julio — июль\nfebrero — февраль, agosto — август\nmarzo — март, septiembre — сентябрь\nabril — апрель, octubre — октябрь\nmayo — май, noviembre — ноябрь\njunio — июнь, diciembre — декабрь\n\nВыражения:\nciento entre veinte — раздели сто на двадцать\n¿a cuantos estamos? — какое сегодня число?',
+			pairs: [
+				{ es: 'el siglo', ru: 'век, столетие' },
+				{ es: 'la edad', ru: 'век человека' },
+				{ es: 'Vivimos en el siglo veintiuno.', ru: 'Мы живем в XXI веке.' },
+				{ es: '¿Que edad tienes?', ru: 'Сколько тебе лет?' },
+				{ es: 'enero / febrero / marzo / abril / mayo / junio', ru: 'январь / февраль / март / апрель / май / июнь' },
+				{ es: 'julio / agosto / septiembre / octubre / noviembre / diciembre', ru: 'июль / август / сентябрь / октябрь / ноябрь / декабрь' },
+				{ es: 'ciento entre veinte', ru: 'раздели сто на двадцать' },
+				{ es: '¿a cuantos estamos?', ru: 'какое сегодня число?' },
+			]
+		}
+	},
+	{
+		id: 'prepositions',
+		title: 'Предлоги a, de, en, para',
+		content: {
+			type: 'grammar',
+			explanation: 'a = в, на, к, по, у\n• a casa — домой (устойчивый оборот)\n• a las dos — в два часа (время)\n• a la espanola — по-испански\n• a 10 pesetas el metro — по 10 песет за метр (цена)\n• признак дательного падежа\n• признак винительного падежа (лицо)\n• орудие действия\n• a + инфинитив = si (условие)\n• al + инфинитив = деепричастие / «когда»\n\nde = от, из, с\n• родительный падеж\n• принадлежность\n\nen = в, на\n• место (где? куда?)\n\npara = для, чтобы, к\n• para + инфинитив — чтобы\n• estar para + инфинитив — быть готовым',
+			pairs: [
+				{ es: 'a casa', ru: 'домой' },
+				{ es: 'a las dos', ru: 'в два часа' },
+				{ es: 'a instancias de (mi amigo)', ru: 'по настоянию (моего друга)' },
+				{ es: 'a la espanola', ru: 'по-испански' },
+				{ es: 'a 10 pesetas el metro', ru: 'по 10 песет метр' },
+				{ es: 'Doy el libro a mi maestro.', ru: 'Я даю книгу учителю.' },
+				{ es: 'Veo a Juana.', ru: 'Я вижу Хуану.' },
+				{ es: 'Los vencieron a hierro.', ru: 'Победили мечом.' },
+				{ es: 'A ser esto verdad, te diria...', ru: 'Если бы это была правда, я бы тебе сказала...' },
+				{ es: 'Al entrar en el cuarto vi a Juan.', ru: 'Войдя в комнату, я увидел Хуана.' },
+				{ es: 'Lo recibi de Juan.', ru: 'Я получил это от Хуана.' },
+				{ es: 'Sali de casa.', ru: 'Я вышел из дому.' },
+				{ es: 'La nina de los ojos negros.', ru: 'Черноглазая девочка.' },
+				{ es: 'Esta alli de criada.', ru: 'Она там работает служанкой.' },
+				{ es: 'El libro de Juan.', ru: 'Книга Хуана.' },
+				{ es: 'Estoy en casa.', ru: 'Я дома.' },
+				{ es: 'Entro en casa.', ru: 'Я вхожу в дом.' },
+				{ es: 'De dia en dia.', ru: 'День ото дня; с каждым днём.' },
+				{ es: 'para ganar', ru: 'чтобы заработать' },
+				{ es: 'para Juan', ru: 'для Хуана' },
+				{ es: 'estoy para ir', ru: 'я готов пойти' },
+			]
+		}
+	},
+	{
+		id: 'numbers',
+		title: 'Числительные 100 — 1 000 000',
+		content: {
+			type: 'grammar',
+			explanation: 'Количественные:\n101 — ciento y uno\n200 — doscientos / doscientas\n300 — trescientos, -as\n400 — cuatrocientos, -as\n500 — quinientos, -as\n600 — seiscientos, -as\n700 — setecientos, -as\n800 — ochocientos, -as\n900 — novecientos, -as\n1 000 — mil\n1 000 000 — un millon (de)\n\nВажно:\n• mil не имеет множественного числа\n• миллиард = mil millones\n• 200–900 согласуются в роде: doscientos hombres / doscientas mujeres\n\nПорядковые (от 200):\n200-й ducentesimo · 300-й trecentesimo · 500-й quingentesimo · 1000-й milesimo\n\n• primero → primer, tercero → tercer (перед муж. сущ.)\n• В датах и столетиях только primero порядковое, остальные количественные',
+			pairs: [
+				{ es: 'un millon (de)', ru: '1 миллион' },
+				{ es: 'tres millones (de)', ru: '3 миллиона' },
+				{ es: 'mil millones', ru: 'миллиард (тысяча миллионов)' },
+				{ es: 'doscientos hombres', ru: 'двести мужчин' },
+				{ es: 'doscientas mujeres', ru: 'двести женщин' },
+				{ es: 'primero', ru: 'первый' },
+				{ es: 'el primero de junio', ru: 'первое июня' },
+				{ es: 'el dos de junio', ru: 'второе июня' },
+				{ es: 'el siglo primero y el siglo dos de nuestra era', ru: 'первый и второй век нашей эры' },
+				{ es: 'el primer piso', ru: 'первый этаж' },
+				{ es: 'el tercer piso', ru: 'третий этаж' },
+				{ es: 'el quinto mes', ru: 'пятый месяц' },
+				{ es: 'la quinta pagina', ru: 'пятая страница' },
+				{ es: 'los primeros alumnos', ru: 'первые ученики' },
+			]
+		}
+	},
+	{
+		id: 'vocab',
+		title: 'Словарь урока',
+		content: {
+			type: 'vocab',
+			words: [
+				{ es: 'la division', ru: 'деление; разделение; распределение' },
+				{ es: 'ayudar', ru: 'помогать' },
+				{ es: 'la tarea', ru: 'работа, дело; задача; задание' },
+				{ es: 'por', ru: 'по, через; из, из-за, в, на' },
+				{ es: 'tres por dos', ru: 'трижды два' },
+				{ es: 'mas', ru: 'плюс' },
+				{ es: 'entre', ru: 'разделить на' },
+				{ es: 'igual', ru: 'одинаковый, равный; равняется' },
+				{ es: 'el historiador', ru: 'историк' },
+				{ es: 'dividir', ru: 'делить, разделить' },
+				{ es: 'la edad', ru: 'возраст; век' },
+				{ es: 'la civilizacion', ru: 'цивилизация' },
+				{ es: 'el astronomo', ru: 'астроном' },
+				{ es: 'el siglo', ru: 'столетие, век' },
+				{ es: 'el minuto', ru: 'минута' },
+				{ es: 'el segundo', ru: 'секунда' },
+				{ es: 'el militar', ru: 'военный' },
+				{ es: 'la campana', ru: 'кампания' },
+				{ es: 'el actor', ru: 'актёр' },
+				{ es: 'el cantante', ru: 'певец' },
+				{ es: 'las elecciones', ru: 'выборы' },
+				{ es: 'la legislatura', ru: 'срок полномочий законодательного органа' },
+				{ es: 'caer', ru: 'падать; терять' },
+				{ es: 'el ministerio', ru: 'министерство; кабинет министров' },
+			]
+		}
+	}
 ];
-
-export const categories = [...new Set(cards.map((c) => c.category))];
