@@ -12,23 +12,38 @@
 	let section = $derived(sections[currentIndex]);
 	let canSwipe = $derived(section.swipeable);
 
-	// TTS
+	// TTS — native Capacitor plugin on Android, Web Speech API in browser
 	let speaking = $state(false);
 	let speakingText = $state('');
-	let voices = $state<SpeechSynthesisVoice[]>([]);
 	let ttsSupported = $state(false);
+	let useNativeTts = $state(false);
+	let nativeTts: any = null;
+
+	// Web Speech API state
+	let voices = $state<SpeechSynthesisVoice[]>([]);
 
 	$effect(() => {
-		if (!('speechSynthesis' in window)) return;
-		ttsSupported = true;
-
-		function loadVoices() {
-			voices = window.speechSynthesis.getVoices();
-		}
-		loadVoices();
-		window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
-		return () => window.speechSynthesis.removeEventListener('voiceschanged', loadVoices);
+		initTts();
 	});
+
+	async function initTts() {
+		// Try Capacitor native TTS first
+		try {
+			const mod = await import('@capacitor-community/text-to-speech');
+			nativeTts = mod.TextToSpeech;
+			useNativeTts = true;
+			ttsSupported = true;
+			return;
+		} catch {}
+
+		// Fallback to Web Speech API
+		if ('speechSynthesis' in window) {
+			ttsSupported = true;
+			function loadVoices() { voices = window.speechSynthesis.getVoices(); }
+			loadVoices();
+			window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
+		}
+	}
 
 	function getEsVoice(): SpeechSynthesisVoice | undefined {
 		return voices.find(v => v.lang === 'es-ES')
@@ -36,30 +51,49 @@
 			|| voices.find(v => v.lang.startsWith('es'));
 	}
 
-	function speak(text: string) {
+	async function speak(text: string) {
 		if (!ttsSupported) return;
-		window.speechSynthesis.cancel();
+
 		if (speaking && speakingText === text) {
-			speaking = false;
-			speakingText = '';
+			await stopSpeaking();
 			return;
 		}
-		const utterance = new SpeechSynthesisUtterance(text);
-		utterance.lang = 'es-ES';
-		utterance.rate = 0.85;
-		const esVoice = getEsVoice();
-		if (esVoice) utterance.voice = esVoice;
-		utterance.onend = () => { speaking = false; speakingText = ''; };
-		utterance.onerror = () => { speaking = false; speakingText = ''; };
+
+		await stopSpeaking();
 		speaking = true;
 		speakingText = text;
-		window.speechSynthesis.speak(utterance);
+
+		if (useNativeTts && nativeTts) {
+			try {
+				await nativeTts.speak({ text, lang: 'es-ES', rate: 0.85 });
+			} catch {}
+			speaking = false;
+			speakingText = '';
+		} else {
+			const utterance = new SpeechSynthesisUtterance(text);
+			utterance.lang = 'es-ES';
+			utterance.rate = 0.85;
+			const esVoice = getEsVoice();
+			if (esVoice) utterance.voice = esVoice;
+			utterance.onend = () => { speaking = false; speakingText = ''; };
+			utterance.onerror = () => { speaking = false; speakingText = ''; };
+			window.speechSynthesis.speak(utterance);
+		}
 	}
 
-	function speakAll() {
+	async function stopSpeaking() {
+		if (useNativeTts && nativeTts) {
+			try { await nativeTts.stop(); } catch {}
+		} else if ('speechSynthesis' in window) {
+			window.speechSynthesis.cancel();
+		}
+		speaking = false;
+		speakingText = '';
+	}
+
+	async function speakAll() {
 		if (!ttsSupported) return;
-		window.speechSynthesis.cancel();
-		if (speaking) { speaking = false; speakingText = ''; return; }
+		if (speaking) { await stopSpeaking(); return; }
 
 		const content = section.content;
 		let texts: string[] = [];
@@ -70,27 +104,28 @@
 		} else if (content.type === 'vocab') {
 			texts = content.words.map(w => w.es);
 		}
-		// Speak sentence by sentence to avoid iOS bug with long utterances
-		speakQueue(texts);
+		await speakQueue(texts);
 	}
 
-	function speakQueue(texts: string[]) {
-		if (texts.length === 0) { speaking = false; speakingText = ''; return; }
+	async function speakQueue(texts: string[]) {
+		if (texts.length === 0 || !speaking) { speaking = false; speakingText = ''; return; }
 		const text = texts[0];
 		const rest = texts.slice(1);
-		const utterance = new SpeechSynthesisUtterance(text);
-		utterance.lang = 'es-ES';
-		utterance.rate = 0.85;
-		const esVoice = getEsVoice();
-		if (esVoice) utterance.voice = esVoice;
-		utterance.onend = () => {
-			if (!speaking) return;
-			speakQueue(rest);
-		};
-		utterance.onerror = () => { speaking = false; speakingText = ''; };
-		speaking = true;
 		speakingText = text;
-		window.speechSynthesis.speak(utterance);
+
+		if (useNativeTts && nativeTts) {
+			try { await nativeTts.speak({ text, lang: 'es-ES', rate: 0.85 }); } catch {}
+			if (speaking) await speakQueue(rest);
+		} else {
+			const utterance = new SpeechSynthesisUtterance(text);
+			utterance.lang = 'es-ES';
+			utterance.rate = 0.85;
+			const esVoice = getEsVoice();
+			if (esVoice) utterance.voice = esVoice;
+			utterance.onend = () => { if (speaking) speakQueue(rest); };
+			utterance.onerror = () => { speaking = false; speakingText = ''; };
+			window.speechSynthesis.speak(utterance);
+		}
 	}
 
 	// Swipe state
