@@ -15,9 +15,29 @@
 	// TTS
 	let speaking = $state(false);
 	let speakingText = $state('');
+	let voices = $state<SpeechSynthesisVoice[]>([]);
+	let ttsSupported = $state(false);
+
+	$effect(() => {
+		if (!('speechSynthesis' in window)) return;
+		ttsSupported = true;
+
+		function loadVoices() {
+			voices = window.speechSynthesis.getVoices();
+		}
+		loadVoices();
+		window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
+		return () => window.speechSynthesis.removeEventListener('voiceschanged', loadVoices);
+	});
+
+	function getEsVoice(): SpeechSynthesisVoice | undefined {
+		return voices.find(v => v.lang === 'es-ES')
+			|| voices.find(v => v.lang === 'es-MX')
+			|| voices.find(v => v.lang.startsWith('es'));
+	}
 
 	function speak(text: string) {
-		if (!('speechSynthesis' in window)) return;
+		if (!ttsSupported) return;
 		window.speechSynthesis.cancel();
 		if (speaking && speakingText === text) {
 			speaking = false;
@@ -27,8 +47,7 @@
 		const utterance = new SpeechSynthesisUtterance(text);
 		utterance.lang = 'es-ES';
 		utterance.rate = 0.85;
-		const voices = window.speechSynthesis.getVoices();
-		const esVoice = voices.find(v => v.lang.startsWith('es'));
+		const esVoice = getEsVoice();
 		if (esVoice) utterance.voice = esVoice;
 		utterance.onend = () => { speaking = false; speakingText = ''; };
 		utterance.onerror = () => { speaking = false; speakingText = ''; };
@@ -38,20 +57,40 @@
 	}
 
 	function speakAll() {
-		if (!('speechSynthesis' in window)) return;
+		if (!ttsSupported) return;
 		window.speechSynthesis.cancel();
 		if (speaking) { speaking = false; speakingText = ''; return; }
 
-		let allText = '';
 		const content = section.content;
+		let texts: string[] = [];
 		if (content.type === 'parallel') {
-			allText = content.pairs.map(p => p.es).join('. ');
+			texts = content.pairs.map(p => p.es);
 		} else if (content.type === 'grammar') {
-			allText = content.pairs.map(p => p.es).join('. ');
+			texts = content.pairs.map(p => p.es);
 		} else if (content.type === 'vocab') {
-			allText = content.words.map(w => w.es).join('. ');
+			texts = content.words.map(w => w.es);
 		}
-		speak(allText);
+		// Speak sentence by sentence to avoid iOS bug with long utterances
+		speakQueue(texts);
+	}
+
+	function speakQueue(texts: string[]) {
+		if (texts.length === 0) { speaking = false; speakingText = ''; return; }
+		const text = texts[0];
+		const rest = texts.slice(1);
+		const utterance = new SpeechSynthesisUtterance(text);
+		utterance.lang = 'es-ES';
+		utterance.rate = 0.85;
+		const esVoice = getEsVoice();
+		if (esVoice) utterance.voice = esVoice;
+		utterance.onend = () => {
+			if (!speaking) return;
+			speakQueue(rest);
+		};
+		utterance.onerror = () => { speaking = false; speakingText = ''; };
+		speaking = true;
+		speakingText = text;
+		window.speechSynthesis.speak(utterance);
 	}
 
 	// Swipe state
