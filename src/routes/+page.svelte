@@ -12,6 +12,48 @@
 	let section = $derived(sections[currentIndex]);
 	let canSwipe = $derived(section.swipeable);
 
+	// TTS
+	let speaking = $state(false);
+	let speakingText = $state('');
+
+	function speak(text: string) {
+		if (!('speechSynthesis' in window)) return;
+		window.speechSynthesis.cancel();
+		if (speaking && speakingText === text) {
+			speaking = false;
+			speakingText = '';
+			return;
+		}
+		const utterance = new SpeechSynthesisUtterance(text);
+		utterance.lang = 'es-ES';
+		utterance.rate = 0.85;
+		const voices = window.speechSynthesis.getVoices();
+		const esVoice = voices.find(v => v.lang.startsWith('es'));
+		if (esVoice) utterance.voice = esVoice;
+		utterance.onend = () => { speaking = false; speakingText = ''; };
+		utterance.onerror = () => { speaking = false; speakingText = ''; };
+		speaking = true;
+		speakingText = text;
+		window.speechSynthesis.speak(utterance);
+	}
+
+	function speakAll() {
+		if (!('speechSynthesis' in window)) return;
+		window.speechSynthesis.cancel();
+		if (speaking) { speaking = false; speakingText = ''; return; }
+
+		let allText = '';
+		const content = section.content;
+		if (content.type === 'parallel') {
+			allText = content.pairs.map(p => p.es).join('. ');
+		} else if (content.type === 'grammar') {
+			allText = content.pairs.map(p => p.es).join('. ');
+		} else if (content.type === 'vocab') {
+			allText = content.words.map(w => w.es).join('. ');
+		}
+		speak(allText);
+	}
+
 	// Swipe state
 	let touchStartX = $state(0);
 	let deltaX = $state(0);
@@ -30,6 +72,8 @@
 		lessonIndex = i;
 		currentIndex = 0;
 		lang = 'es';
+		window.speechSynthesis?.cancel();
+		speaking = false;
 	}
 
 	function onKeydown(e: KeyboardEvent) {
@@ -64,9 +108,7 @@
 
 	let langLabel = $derived(lang === 'es' ? 'Espanol' : 'Русский');
 	let footerHint = $derived.by(() => {
-		if (canSwipe) {
-			return lang === 'es' ? '← свайп → Русский' : '← свайп → Espanol';
-		}
+		if (canSwipe) return lang === 'es' ? '← свайп → Русский' : '← свайп → Espanol';
 		return '';
 	});
 </script>
@@ -76,7 +118,6 @@
 <div class="app">
 	<header>
 		<div class="top-row">
-			<!-- Lesson selector -->
 			<div class="lesson-tabs">
 				{#each lessons as l, i (l.id)}
 					<button
@@ -86,14 +127,18 @@
 					>{l.title}</button>
 				{/each}
 			</div>
-			{#if canSwipe}
-				<div class="lang-indicator" class:es={lang === 'es'} class:ru={lang === 'ru'}>
-					{langLabel}
-				</div>
-			{/if}
+			<div class="top-right">
+				<button class="speak-all-btn" class:active={speaking} onclick={speakAll} aria-label="Read all aloud">
+					{speaking ? '◼' : '▶'} ES
+				</button>
+				{#if canSwipe}
+					<div class="lang-indicator" class:es={lang === 'es'} class:ru={lang === 'ru'}>
+						{langLabel}
+					</div>
+				{/if}
+			</div>
 		</div>
 		<div class="subtitle">{lesson.subtitle}</div>
-		<!-- Section tabs -->
 		<div class="sections-nav">
 			{#each sections as s, i (s.id)}
 				<button
@@ -115,7 +160,15 @@
 			{#if section.content.type === 'parallel'}
 				<div class="text-block">
 					{#each section.content.pairs as pair, i (i)}
-						<p class="line">{lang === 'es' ? pair.es : pair.ru}</p>
+						<div class="line-row">
+							<p class="line">{lang === 'es' ? pair.es : pair.ru}</p>
+							<button
+								class="speak-btn"
+								class:active={speaking && speakingText === pair.es}
+								onclick={() => speak(pair.es)}
+								aria-label="Read aloud"
+							>&#9835;</button>
+						</div>
 					{/each}
 				</div>
 
@@ -125,7 +178,15 @@
 					<div class="examples-header">Примеры:</div>
 					{#each section.content.pairs as pair, i (i)}
 						<div class="example-pair">
-							<span class="primary">{pair.es}</span>
+							<div class="example-row">
+								<span class="primary">{pair.es}</span>
+								<button
+									class="speak-btn"
+									class:active={speaking && speakingText === pair.es}
+									onclick={() => speak(pair.es)}
+									aria-label="Read aloud"
+								>&#9835;</button>
+							</div>
 							<span class="secondary">{pair.ru}</span>
 						</div>
 					{/each}
@@ -135,6 +196,12 @@
 				<div class="text-block vocab">
 					{#each section.content.words as w, i (i)}
 						<div class="vocab-line">
+							<button
+								class="speak-btn"
+								class:active={speaking && speakingText === w.es}
+								onclick={() => speak(w.es)}
+								aria-label="Read aloud"
+							>&#9835;</button>
 							<span class="word">{w.es}</span>
 							<span class="meaning">{w.ru}</span>
 						</div>
@@ -189,6 +256,12 @@
 		align-items: center;
 	}
 
+	.top-right {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+	}
+
 	.lesson-tabs {
 		display: flex;
 		gap: 0.25rem;
@@ -216,6 +289,25 @@
 		color: #556;
 		margin-top: 0.2rem;
 	}
+
+	.speak-all-btn {
+		background: #1a1a3a;
+		border: 1px solid #2a2a50;
+		color: #7a8;
+		font-size: 0.65rem;
+		font-weight: 700;
+		padding: 0.2rem 0.5rem;
+		border-radius: 4px;
+		cursor: pointer;
+		transition: all 0.2s;
+		letter-spacing: 0.5px;
+	}
+	.speak-all-btn.active {
+		background: rgba(100, 200, 130, 0.15);
+		border-color: #4a8;
+		color: #6cb;
+	}
+	.speak-all-btn:hover { border-color: #4a8; }
 
 	.lang-indicator {
 		font-size: 0.7rem;
@@ -292,15 +384,39 @@
 		gap: 0;
 	}
 
+	/* TTS button */
+	.speak-btn {
+		background: none;
+		border: none;
+		color: #445;
+		font-size: 0.75rem;
+		cursor: pointer;
+		padding: 0.15rem 0.3rem;
+		border-radius: 4px;
+		flex-shrink: 0;
+		transition: color 0.2s;
+		line-height: 1;
+	}
+	.speak-btn:hover { color: #6cb; }
+	.speak-btn.active { color: #6cb; }
+
+	/* Parallel lines with speaker */
+	.line-row {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.25rem;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+	}
+	.line-row:last-child { border-bottom: none; }
+
 	.line {
 		margin: 0;
 		padding: 0.3rem 0;
 		font-size: 0.92rem;
 		line-height: 1.5;
 		color: #d8dcf0;
-		border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+		flex: 1;
 	}
-	.line:last-child { border-bottom: none; }
 
 	.explanation {
 		font-size: 0.82rem;
@@ -331,10 +447,17 @@
 	}
 	.example-pair:last-child { border-bottom: none; }
 
+	.example-row {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.25rem;
+	}
+
 	.primary {
 		font-size: 0.9rem;
 		color: #c8d0f8;
 		line-height: 1.45;
+		flex: 1;
 	}
 
 	.secondary {
@@ -349,9 +472,8 @@
 
 	.vocab-line {
 		display: flex;
-		justify-content: space-between;
 		align-items: baseline;
-		gap: 0.5rem;
+		gap: 0.35rem;
 		padding: 0.35rem 0;
 		border-bottom: 1px solid rgba(255, 255, 255, 0.03);
 		font-size: 0.88rem;
@@ -367,6 +489,7 @@
 
 	.meaning {
 		color: #888;
+		margin-left: auto;
 		text-align: right;
 	}
 
