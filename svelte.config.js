@@ -25,7 +25,7 @@ const config = {
 			strict: false
 		}),
 		paths: {
-			base: process.argv.includes('dev') ? '' : '/lingua-swipe'
+			base: process.env.GITHUB_PAGES ? '/lingua-swipe' : ''
 		}
 	}
 };
