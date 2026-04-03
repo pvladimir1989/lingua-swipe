@@ -1,141 +1,140 @@
 <script lang="ts">
-	import { sections, type Section, type SectionContent } from '$lib/data/leccion-59';
+	import { sections } from '$lib/data/leccion-59';
 	import type { Language } from '$lib/types';
 
 	let currentIndex = $state(0);
-	let frontLang = $state<Language>('es');
+	let lang = $state<Language>('es');
 	let total = sections.length;
-
 	let section = $derived(sections[currentIndex]);
 
-	// Touch/swipe
+	// Swipe state
 	let touchStartX = $state(0);
-	let swiping = $state(false);
 	let deltaX = $state(0);
+	let swiping = $state(false);
+	let animating = $state(false);
 
-	function prev() {
-		if (currentIndex > 0) currentIndex--;
-	}
-	function next() {
-		if (currentIndex < total - 1) currentIndex++;
-	}
-	function toggleLang() {
-		frontLang = frontLang === 'es' ? 'ru' : 'es';
-	}
+	function showEs() { lang = 'es'; }
+	function showRu() { lang = 'ru'; }
+	function toggleLang() { lang = lang === 'es' ? 'ru' : 'es'; }
+
+	function prevSection() { if (currentIndex > 0) currentIndex--; }
+	function nextSection() { if (currentIndex < total - 1) currentIndex++; }
 
 	function onKeydown(e: KeyboardEvent) {
-		if (e.key === 'ArrowLeft') prev();
-		if (e.key === 'ArrowRight') next();
+		if (e.key === 'ArrowUp') { e.preventDefault(); prevSection(); }
+		if (e.key === 'ArrowDown') { e.preventDefault(); nextSection(); }
+		if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); toggleLang(); }
 		if (e.key === ' ') { e.preventDefault(); toggleLang(); }
 	}
 
 	function onTouchStart(e: TouchEvent) {
+		if (animating) return;
 		touchStartX = e.touches[0].clientX;
 		swiping = true;
 		deltaX = 0;
 	}
+
 	function onTouchMove(e: TouchEvent) {
 		if (!swiping) return;
 		deltaX = e.touches[0].clientX - touchStartX;
 	}
+
 	function onTouchEnd() {
 		if (!swiping) return;
 		swiping = false;
-		if (deltaX > 80) prev();
-		else if (deltaX < -80) next();
+		if (Math.abs(deltaX) > 60) {
+			animating = true;
+			toggleLang();
+			setTimeout(() => { animating = false; }, 300);
+		}
 		deltaX = 0;
 	}
 
-	function first(lang: Language): Language {
-		return frontLang === 'es' ? lang : (lang === 'es' ? 'ru' : 'es');
-	}
+	let langLabel = $derived(lang === 'es' ? 'Espanol' : 'Русский');
+	let otherLangHint = $derived(lang === 'es' ? '← свайп → Русский' : '← свайп → Espanol');
 </script>
 
 <svelte:window onkeydown={onKeydown} />
 
 <div class="app">
-	<!-- Top bar -->
 	<header>
-		<div class="header-row">
+		<div class="top-row">
 			<h1>Leccion 59</h1>
-			<button class="lang-btn" onclick={toggleLang}>
-				{frontLang === 'es' ? 'ES → RU' : 'RU → ES'}
-			</button>
+			<div class="lang-indicator" class:es={lang === 'es'} class:ru={lang === 'ru'}>
+				{langLabel}
+			</div>
 		</div>
-		<div class="nav-row">
-			<button class="nav-btn" onclick={prev} disabled={currentIndex === 0}>←</button>
-			<span class="section-title">{section.title}</span>
-			<button class="nav-btn" onclick={next} disabled={currentIndex === total - 1}>→</button>
-		</div>
-		<div class="dots">
+		<!-- Section dots -->
+		<div class="sections-nav">
 			{#each sections as s, i (s.id)}
 				<button
-					class="dot"
+					class="section-btn"
 					class:active={i === currentIndex}
 					onclick={() => currentIndex = i}
-					aria-label="Go to {s.title}"
-				></button>
+				>{s.title}</button>
 			{/each}
 		</div>
 	</header>
 
-	<!-- Content -->
 	<main
 		ontouchstart={onTouchStart}
 		ontouchmove={onTouchMove}
 		ontouchend={onTouchEnd}
+		style="transform: translateX({swiping ? deltaX * 0.4 : 0}px)"
 	>
-		{#if section.content.type === 'parallel'}
-			<div class="parallel-text">
-				{#each section.content.pairs as pair, i (i)}
-					<div class="pair">
-						<p class="es">{frontLang === 'es' ? pair.es : pair.ru}</p>
-						<p class="ru">{frontLang === 'es' ? pair.ru : pair.es}</p>
-					</div>
-				{/each}
-			</div>
-		{:else if section.content.type === 'grammar'}
-			<div class="grammar">
-				<div class="explanation">{section.content.explanation}</div>
-				<div class="divider"></div>
-				{#each section.content.pairs as pair, i (i)}
-					<div class="pair">
-						<p class="es">{frontLang === 'es' ? pair.es : pair.ru}</p>
-						<p class="ru">{frontLang === 'es' ? pair.ru : pair.es}</p>
-					</div>
-				{/each}
-			</div>
-		{:else if section.content.type === 'vocab'}
-			<div class="vocab-grid">
-				{#each section.content.words as w, i (i)}
-					<div class="vocab-row">
-						<span class="vocab-es">{frontLang === 'es' ? w.es : w.ru}</span>
-						<span class="vocab-sep">—</span>
-						<span class="vocab-ru">{frontLang === 'es' ? w.ru : w.es}</span>
-					</div>
-				{/each}
-			</div>
-		{/if}
+		<div class="card" class:flip-in={animating}>
+			{#if section.content.type === 'parallel'}
+				<div class="text-block">
+					{#each section.content.pairs as pair, i (i)}
+						<p class="line">{lang === 'es' ? pair.es : pair.ru}</p>
+					{/each}
+				</div>
+
+			{:else if section.content.type === 'grammar'}
+				<div class="text-block">
+					<div class="explanation">{section.content.explanation}</div>
+					<div class="examples-header">Примеры:</div>
+					{#each section.content.pairs as pair, i (i)}
+						<div class="example-pair">
+							<span class="primary">{lang === 'es' ? pair.es : pair.ru}</span>
+							<span class="secondary">{lang === 'es' ? pair.ru : pair.es}</span>
+						</div>
+					{/each}
+				</div>
+
+			{:else if section.content.type === 'vocab'}
+				<div class="text-block vocab">
+					{#each section.content.words as w, i (i)}
+						<div class="vocab-line">
+							<span class="word">{lang === 'es' ? w.es : w.ru}</span>
+							<span class="meaning">{lang === 'es' ? w.ru : w.es}</span>
+						</div>
+					{/each}
+				</div>
+			{/if}
+		</div>
 	</main>
 
 	<footer>
-		<span>{currentIndex + 1} / {total}</span>
-		<span class="hint">← → листать · пробел = язык</span>
+		<button class="footer-nav" onclick={prevSection} disabled={currentIndex === 0}>&#9650;</button>
+		<div class="footer-center">
+			<span class="counter">{currentIndex + 1} / {total}</span>
+			<span class="swipe-hint">{otherLangHint}</span>
+		</div>
+		<button class="footer-nav" onclick={nextSection} disabled={currentIndex === total - 1}>&#9660;</button>
 	</footer>
 </div>
 
 <style>
-	:global(*, *::before, *::after) {
-		box-sizing: border-box;
-	}
+	:global(*, *::before, *::after) { box-sizing: border-box; }
 	:global(body) {
 		margin: 0;
 		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
 		background: #0d0d1a;
 		color: #e8e8f0;
 		-webkit-font-smoothing: antialiased;
-		overflow: hidden;
 		height: 100dvh;
+		overflow: hidden;
 	}
 
 	.app {
@@ -146,15 +145,15 @@
 		margin: 0 auto;
 	}
 
-	/* Header */
+	/* === HEADER === */
 	header {
 		flex-shrink: 0;
-		padding: 0.5rem 0.75rem 0.25rem;
-		background: #13132a;
-		border-bottom: 1px solid #222244;
+		padding: 0.4rem 0.6rem 0.3rem;
+		background: #111128;
+		border-bottom: 1px solid #1e1e3a;
 	}
 
-	.header-row {
+	.top-row {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
@@ -162,198 +161,212 @@
 
 	h1 {
 		margin: 0;
-		font-size: 1.1rem;
+		font-size: 1rem;
 		font-weight: 700;
-		background: linear-gradient(135deg, #7c8cf5, #e87cac);
-		-webkit-background-clip: text;
-		-webkit-text-fill-color: transparent;
-		background-clip: text;
+		color: #8890c7;
 	}
 
-	.lang-btn {
-		background: linear-gradient(135deg, #667eea, #764ba2);
-		color: white;
-		border: none;
-		border-radius: 6px;
-		padding: 0.3rem 0.7rem;
-		font-size: 0.75rem;
+	.lang-indicator {
+		font-size: 0.7rem;
 		font-weight: 700;
-		cursor: pointer;
+		padding: 0.2rem 0.6rem;
+		border-radius: 4px;
 		letter-spacing: 0.5px;
+		text-transform: uppercase;
+		transition: background 0.3s, color 0.3s;
+	}
+	.lang-indicator.es {
+		background: rgba(102, 126, 234, 0.2);
+		color: #8da0ff;
+	}
+	.lang-indicator.ru {
+		background: rgba(245, 87, 108, 0.2);
+		color: #f5879c;
 	}
 
-	.nav-row {
+	.sections-nav {
 		display: flex;
-		align-items: center;
-		gap: 0.5rem;
+		gap: 0;
 		margin-top: 0.35rem;
+		overflow-x: auto;
+		scrollbar-width: none;
+		-ms-overflow-style: none;
 	}
+	.sections-nav::-webkit-scrollbar { display: none; }
 
-	.section-title {
-		flex: 1;
-		text-align: center;
-		font-size: 0.8rem;
-		font-weight: 600;
-		opacity: 0.85;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-
-	.nav-btn {
-		background: #1e1e40;
-		color: #ccc;
-		border: 1px solid #333;
-		border-radius: 6px;
-		width: 32px;
-		height: 28px;
-		font-size: 0.9rem;
-		cursor: pointer;
+	.section-btn {
 		flex-shrink: 0;
-	}
-	.nav-btn:disabled {
-		opacity: 0.25;
-		cursor: default;
-	}
-
-	.dots {
-		display: flex;
-		justify-content: center;
-		gap: 6px;
-		margin-top: 0.35rem;
-		padding-bottom: 0.15rem;
-	}
-
-	.dot {
-		width: 7px;
-		height: 7px;
-		border-radius: 50%;
+		background: none;
 		border: none;
-		background: #333;
+		color: #555;
+		font-size: 0.65rem;
+		padding: 0.25rem 0.5rem;
 		cursor: pointer;
-		padding: 0;
-		transition: background 0.2s;
+		border-bottom: 2px solid transparent;
+		transition: color 0.2s, border-color 0.2s;
+		white-space: nowrap;
 	}
-	.dot.active {
-		background: #7c8cf5;
+	.section-btn.active {
+		color: #b8c4ff;
+		border-bottom-color: #667eea;
 	}
 
-	/* Main scrollable content */
+	/* === MAIN CARD === */
 	main {
 		flex: 1;
+		overflow: hidden;
+		transition: transform 0.15s ease-out;
+	}
+
+	.card {
+		height: 100%;
 		overflow-y: auto;
-		overflow-x: hidden;
-		padding: 0.75rem;
 		-webkit-overflow-scrolling: touch;
+		padding: 0.6rem 0.75rem 1.5rem;
 		scrollbar-width: thin;
-		scrollbar-color: #333 transparent;
+		scrollbar-color: #222 transparent;
 	}
 
-	/* Parallel text (dialogue) */
-	.parallel-text {
-		display: flex;
-		flex-direction: column;
-		gap: 0.1rem;
+	.card.flip-in {
+		animation: flipIn 0.3s ease-out;
 	}
 
-	.pair {
-		padding: 0.4rem 0;
-		border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-	}
-	.pair:last-child {
-		border-bottom: none;
+	@keyframes flipIn {
+		0% { opacity: 0; transform: scale(0.97); }
+		100% { opacity: 1; transform: scale(1); }
 	}
 
-	.pair .es {
-		margin: 0;
-		font-size: 0.9rem;
-		line-height: 1.45;
-		color: #b8c4ff;
-		font-weight: 500;
-	}
-
-	.pair .ru {
-		margin: 0.15rem 0 0;
-		font-size: 0.82rem;
-		line-height: 1.4;
-		color: #999;
-		font-style: italic;
-	}
-
-	/* Grammar sections */
-	.grammar {
-		display: flex;
-		flex-direction: column;
-		gap: 0.1rem;
-	}
-
-	.explanation {
-		font-size: 0.82rem;
-		line-height: 1.55;
-		color: #c8c8d8;
-		white-space: pre-line;
-		padding: 0.5rem 0.6rem;
-		background: rgba(102, 126, 234, 0.08);
-		border-radius: 8px;
-		border-left: 3px solid #667eea;
-		margin-bottom: 0.5rem;
-	}
-
-	.divider {
-		height: 1px;
-		background: rgba(255, 255, 255, 0.06);
-		margin: 0.25rem 0;
-	}
-
-	/* Vocabulary */
-	.vocab-grid {
+	/* === TEXT CONTENT === */
+	.text-block {
 		display: flex;
 		flex-direction: column;
 		gap: 0;
 	}
 
-	.vocab-row {
+	/* Parallel (dialogue) */
+	.line {
+		margin: 0;
+		padding: 0.3rem 0;
+		font-size: 0.92rem;
+		line-height: 1.5;
+		color: #d8dcf0;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+	}
+	.line:last-child { border-bottom: none; }
+
+	/* Grammar */
+	.explanation {
+		font-size: 0.82rem;
+		line-height: 1.6;
+		color: #b0b4cc;
+		white-space: pre-line;
+		padding: 0.6rem;
+		background: rgba(102, 126, 234, 0.06);
+		border-radius: 8px;
+		border-left: 3px solid #4a5a9e;
+		margin-bottom: 0.6rem;
+	}
+
+	.examples-header {
+		font-size: 0.72rem;
+		text-transform: uppercase;
+		letter-spacing: 1px;
+		color: #556;
+		margin-bottom: 0.3rem;
+		font-weight: 600;
+	}
+
+	.example-pair {
 		display: flex;
+		flex-direction: column;
+		padding: 0.3rem 0;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+	}
+	.example-pair:last-child { border-bottom: none; }
+
+	.primary {
+		font-size: 0.9rem;
+		color: #c8d0f8;
+		line-height: 1.45;
+	}
+
+	.secondary {
+		font-size: 0.78rem;
+		color: #666;
+		line-height: 1.4;
+		font-style: italic;
+		margin-top: 1px;
+	}
+
+	/* Vocabulary */
+	.vocab {
+		gap: 0;
+	}
+
+	.vocab-line {
+		display: flex;
+		justify-content: space-between;
 		align-items: baseline;
-		gap: 0.4rem;
-		padding: 0.4rem 0;
-		border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+		gap: 0.5rem;
+		padding: 0.35rem 0;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.03);
 		font-size: 0.88rem;
 		line-height: 1.4;
 	}
-	.vocab-row:last-child {
-		border-bottom: none;
-	}
+	.vocab-line:last-child { border-bottom: none; }
 
-	.vocab-es {
+	.word {
 		color: #b8c4ff;
 		font-weight: 600;
 		flex-shrink: 0;
 	}
 
-	.vocab-sep {
-		color: #444;
-		flex-shrink: 0;
+	.meaning {
+		color: #888;
+		text-align: right;
 	}
 
-	.vocab-ru {
-		color: #999;
-	}
-
-	/* Footer */
+	/* === FOOTER === */
 	footer {
 		flex-shrink: 0;
 		display: flex;
-		justify-content: space-between;
 		align-items: center;
-		padding: 0.35rem 0.75rem;
-		font-size: 0.7rem;
-		color: #555;
-		background: #13132a;
-		border-top: 1px solid #222244;
+		padding: 0.3rem 0.75rem;
+		background: #111128;
+		border-top: 1px solid #1e1e3a;
+		gap: 0.5rem;
 	}
 
-	.hint {
-		opacity: 0.6;
+	.footer-nav {
+		background: none;
+		border: 1px solid #2a2a50;
+		color: #667;
+		border-radius: 6px;
+		width: 32px;
+		height: 28px;
+		font-size: 0.7rem;
+		cursor: pointer;
+		flex-shrink: 0;
+	}
+	.footer-nav:disabled { opacity: 0.2; cursor: default; }
+	.footer-nav:hover:not(:disabled) { border-color: #444; color: #aaa; }
+
+	.footer-center {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0;
+	}
+
+	.counter {
+		font-size: 0.72rem;
+		color: #556;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.swipe-hint {
+		font-size: 0.65rem;
+		color: #445;
 	}
 </style>
