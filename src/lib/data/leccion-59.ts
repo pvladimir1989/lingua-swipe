@@ -1,14 +1,4 @@
-export interface Section {
-	id: string;
-	title: string;
-	swipeable: boolean;
-	content: SectionContent;
-}
-
-export type SectionContent =
-	| { type: 'parallel'; pairs: { es: string; ru: string }[] }
-	| { type: 'grammar'; explanation: string; pairs: { es: string; ru: string }[] }
-	| { type: 'vocab'; words: { es: string; ru: string }[] };
+import type { Section } from '$lib/types';
 
 export const sections: Section[] = [
 	{

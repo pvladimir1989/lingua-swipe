@@ -1,10 +1,14 @@
 <script lang="ts">
-	import { sections } from '$lib/data/leccion-59';
+	import { lessons } from '$lib/data';
 	import type { Language } from '$lib/types';
 
+	let lessonIndex = $state(0);
 	let currentIndex = $state(0);
 	let lang = $state<Language>('es');
-	let total = sections.length;
+
+	let lesson = $derived(lessons[lessonIndex]);
+	let sections = $derived(lesson.sections);
+	let total = $derived(sections.length);
 	let section = $derived(sections[currentIndex]);
 	let canSwipe = $derived(section.swipeable);
 
@@ -21,6 +25,12 @@
 
 	function prevSection() { if (currentIndex > 0) currentIndex--; }
 	function nextSection() { if (currentIndex < total - 1) currentIndex++; }
+
+	function selectLesson(i: number) {
+		lessonIndex = i;
+		currentIndex = 0;
+		lang = 'es';
+	}
 
 	function onKeydown(e: KeyboardEvent) {
 		if (e.key === 'ArrowUp') { e.preventDefault(); prevSection(); }
@@ -52,10 +62,10 @@
 		deltaX = 0;
 	}
 
-	let langLabel = $derived(lang === 'es' ? 'Español' : 'Русский');
+	let langLabel = $derived(lang === 'es' ? 'Espanol' : 'Русский');
 	let footerHint = $derived.by(() => {
 		if (canSwipe) {
-			return lang === 'es' ? '← свайп → Русский' : '← свайп → Español';
+			return lang === 'es' ? '← свайп → Русский' : '← свайп → Espanol';
 		}
 		return '';
 	});
@@ -66,13 +76,24 @@
 <div class="app">
 	<header>
 		<div class="top-row">
-			<h1>Lección 59</h1>
+			<!-- Lesson selector -->
+			<div class="lesson-tabs">
+				{#each lessons as l, i (l.id)}
+					<button
+						class="lesson-tab"
+						class:active={i === lessonIndex}
+						onclick={() => selectLesson(i)}
+					>{l.title}</button>
+				{/each}
+			</div>
 			{#if canSwipe}
 				<div class="lang-indicator" class:es={lang === 'es'} class:ru={lang === 'ru'}>
 					{langLabel}
 				</div>
 			{/if}
 		</div>
+		<div class="subtitle">{lesson.subtitle}</div>
+		<!-- Section tabs -->
 		<div class="sections-nav">
 			{#each sections as s, i (s.id)}
 				<button
@@ -92,7 +113,6 @@
 	>
 		<div class="card" class:flip-in={animating}>
 			{#if section.content.type === 'parallel'}
-				<!-- Swipeable: show one language at a time -->
 				<div class="text-block">
 					{#each section.content.pairs as pair, i (i)}
 						<p class="line">{lang === 'es' ? pair.es : pair.ru}</p>
@@ -100,7 +120,6 @@
 				</div>
 
 			{:else if section.content.type === 'grammar'}
-				<!-- Static: always show both languages -->
 				<div class="text-block">
 					<div class="explanation">{section.content.explanation}</div>
 					<div class="examples-header">Примеры:</div>
@@ -113,7 +132,6 @@
 				</div>
 
 			{:else if section.content.type === 'vocab'}
-				<!-- Static: always show both languages -->
 				<div class="text-block vocab">
 					{#each section.content.words as w, i (i)}
 						<div class="vocab-line">
@@ -158,7 +176,6 @@
 		margin: 0 auto;
 	}
 
-	/* === HEADER === */
 	header {
 		flex-shrink: 0;
 		padding: 0.4rem 0.6rem 0.3rem;
@@ -172,11 +189,32 @@
 		align-items: center;
 	}
 
-	h1 {
-		margin: 0;
-		font-size: 1rem;
-		font-weight: 700;
-		color: #8890c7;
+	.lesson-tabs {
+		display: flex;
+		gap: 0.25rem;
+	}
+
+	.lesson-tab {
+		background: #1a1a3a;
+		border: 1px solid #2a2a50;
+		color: #667;
+		font-size: 0.7rem;
+		font-weight: 600;
+		padding: 0.2rem 0.5rem;
+		border-radius: 4px;
+		cursor: pointer;
+		transition: all 0.2s;
+	}
+	.lesson-tab.active {
+		background: linear-gradient(135deg, #667eea, #764ba2);
+		border-color: transparent;
+		color: white;
+	}
+
+	.subtitle {
+		font-size: 0.65rem;
+		color: #556;
+		margin-top: 0.2rem;
 	}
 
 	.lang-indicator {
@@ -224,7 +262,6 @@
 		border-bottom-color: #667eea;
 	}
 
-	/* === MAIN CARD === */
 	main {
 		flex: 1;
 		overflow: hidden;
@@ -249,14 +286,12 @@
 		100% { opacity: 1; transform: scale(1); }
 	}
 
-	/* === TEXT CONTENT === */
 	.text-block {
 		display: flex;
 		flex-direction: column;
 		gap: 0;
 	}
 
-	/* Parallel (dialogue) — single language, swipeable */
 	.line {
 		margin: 0;
 		padding: 0.3rem 0;
@@ -267,7 +302,6 @@
 	}
 	.line:last-child { border-bottom: none; }
 
-	/* Grammar — both languages always visible */
 	.explanation {
 		font-size: 0.82rem;
 		line-height: 1.6;
@@ -311,7 +345,6 @@
 		margin-top: 1px;
 	}
 
-	/* Vocabulary — both languages always visible */
 	.vocab { gap: 0; }
 
 	.vocab-line {
@@ -337,7 +370,6 @@
 		text-align: right;
 	}
 
-	/* === FOOTER === */
 	footer {
 		flex-shrink: 0;
 		display: flex;
